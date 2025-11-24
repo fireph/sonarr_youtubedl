@@ -32,14 +32,14 @@ jobs:
       - name: Get current yt-dlp version
         id: current-version
         run: |
-          CURRENT_VERSION=$(grep "yt-dlp[default]==" requirements.txt | cut -d'=' -f3)
+          CURRENT_VERSION=$(grep "yt-dlp[default,curl-cffi]==" requirements.txt | cut -d'=' -f3)
           echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current yt-dlp version: $CURRENT_VERSION"
 
       - name: Update requirements.txt
         if: steps.ytdlp-version.outputs.latest != steps.current-version.outputs.current
         run: |
-          sed -i "s/yt-dlp==${{ steps.current-version.outputs.current }}/yt-dlp==${{ steps.ytdlp-version.outputs.latest }}/" requirements.txt
+          sed -i "s/yt-dlp[default,curl-cffi]==${{ steps.current-version.outputs.current }}/yt-dlp[default,curl-cffi]==${{ steps.ytdlp-version.outputs.latest }}/" requirements.txt
           echo "Updated yt-dlp from ${{ steps.current-version.outputs.current }} to ${{ steps.ytdlp-version.outputs.latest }}"
 
       - name: Commit and push changes
