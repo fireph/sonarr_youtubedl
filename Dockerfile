@@ -1,7 +1,7 @@
 FROM python:3-alpine
 
 # Install ffmpeg
-RUN apk add --no-cache ffmpeg curl unzip
+RUN apk add --no-cache ffmpeg curl unzip gcompat
 
 # Install Deno
 ENV DENO_INSTALL="/usr/local"
