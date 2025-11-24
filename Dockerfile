@@ -1,7 +1,7 @@
 FROM python:3-alpine
 
 # Install ffmpeg
-RUN apk add --no-cache ffmpeg
+RUN apk add --no-cache ffmpeg deno
 
 # Copy and install requirements with optimizations
 COPY requirements.txt requirements.txt
