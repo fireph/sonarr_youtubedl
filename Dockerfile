@@ -1,7 +1,12 @@
 FROM python:3-alpine
 
 # Install ffmpeg
-RUN apk add --no-cache ffmpeg deno
+RUN apk add --no-cache ffmpeg curl unzip
+
+# Install Deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="$DENO_INSTALL/bin:$PATH"
 
 # Copy and install requirements with optimizations
 COPY requirements.txt requirements.txt
