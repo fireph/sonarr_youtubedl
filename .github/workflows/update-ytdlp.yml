@@ -26,13 +26,13 @@ jobs:
         id: ytdlp-version
         run: |
           LATEST_VERSION=$(pip index versions yt-dlp | grep "Available versions:" | head -1 | cut -d' ' -f3 | tr -d ',')
-          echo "latest=$LATEST_VERSION[default]" >> $GITHUB_OUTPUT
-          echo "Latest yt-dlp version: $LATEST_VERSION[default]"
+          echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest yt-dlp version: $LATEST_VERSION"
 
       - name: Get current yt-dlp version
         id: current-version
         run: |
-          CURRENT_VERSION=$(grep "yt-dlp==" requirements.txt | cut -d'=' -f3)
+          CURRENT_VERSION=$(grep "yt-dlp[default]==" requirements.txt | cut -d'=' -f3)
           echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current yt-dlp version: $CURRENT_VERSION"
 
