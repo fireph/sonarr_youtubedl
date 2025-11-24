@@ -43,9 +43,7 @@
 | Architecture | Available Tags |
 |:------------:|:-------------:|
 | **x86-64** | `latest` |
-| **ARM v7** | `latest` |
 | **ARM64** | `latest` |
-| **i386** | `latest` |
 
 ## Version Tags
 
