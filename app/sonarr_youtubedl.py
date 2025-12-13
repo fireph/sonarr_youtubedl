@@ -420,6 +420,7 @@ class SonarrYTDL(object):
                             ytdl_format_options = {
                                 "format": self.ytdl_format,
                                 "quiet": True,
+                                "noprogress": True,
                                 "merge-output-format": "mkv",
                                 "outtmpl": "/sonarr_root{0}/{1}/{2} - S{3:02d}E{4:02d} - {5} - WEB-DL-SonarrYTDL.%(ext)s".format(
                                     ser["path"],
