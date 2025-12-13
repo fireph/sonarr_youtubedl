@@ -422,7 +422,7 @@ class SonarrYTDL(object):
                                 "quiet": True,
                                 "noprogress": True,
                                 "merge-output-format": "mkv",
-                                "outtmpl": "/sonarr_root{0}/{1}/{2} - S{3:02d}E{4:02d} - {5} - WEB-DL-SonarrYTDL.%(ext)s".format(
+                                "outtmpl": "/sonarr_root{0}/{1}/{2}.S{3:02d}E{4:02d}.{5}.WEBDL-%(height)sp.%(acodec)s.%(vcodec)s-SonarrYTDL.%(ext)s".format(
                                     ser["path"],
                                     "Specials"
                                     if eps["seasonNumber"] == 0

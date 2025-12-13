@@ -16,6 +16,8 @@ def sanitize_str(string):
     returns:
         ``string``: sanitized string safe for filenames
     """
+    # Replace spaces with dots
+    string = string.replace(" ", ".")
     # Replace invalid filename characters with dash
     string = re.sub(r'[<>:"/\\|?*]', "-", string)
     # Replace multiple consecutive dashes with single dash
