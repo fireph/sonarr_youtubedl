@@ -354,16 +354,11 @@ class SonarrYTDL(object):
         else:
             return ytdlopts
 
-    def ytdl_eps_search_opts(self, regextitle, playlistreverse, cookies=None):
+    def ytdl_eps_search_opts(self, playlistreverse, cookies=None):
         ytdlopts = {
             "ignoreerrors": True,
             "playlistreverse": playlistreverse,
-            "matchtitle": regextitle,
-            "match_filter": lambda info, *, incomplete=False: (
-                None if not incomplete
-                else None if (info.get("title") and re.search(regextitle, info["title"], re.IGNORECASE))
-                else "unavailable or no match"
-            ),
+            "extract_flat": True,
             "quiet": True,
         }
         if self.debug is True:
@@ -380,7 +375,7 @@ class SonarrYTDL(object):
             logger.debug(ytdlopts)
         return ytdlopts
 
-    def ytsearch(self, ydl_opts, playlist):
+    def ytsearch(self, ydl_opts, playlist, regextitle):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 result = ydl.extract_info(playlist, download=False)
@@ -389,12 +384,17 @@ class SonarrYTDL(object):
             return False, ""
         else:
             if result is None:
-                logger.debug("No result returned from yt-dlp")
                 return False, ""
             video_url = None
-            if "entries" in result and result["entries"] and len(result["entries"]) > 0:
+            if "entries" in result and result["entries"]:
                 try:
-                    video_url = result["entries"][0].get("webpage_url")
+                    for entry in result["entries"]:
+                        if entry is None:
+                            continue
+                        title = entry.get("title")
+                        if regextitle is None or (title and re.search(regextitle, title, re.IGNORECASE)):
+                            video_url = entry.get("webpage_url") or entry.get("url")
+                            break
                 except Exception as e:
                     logger.error(e)
             else:
@@ -402,7 +402,7 @@ class SonarrYTDL(object):
             if playlist == video_url:
                 return False, ""
             if video_url is None:
-                logger.error("No video_url")
+                logger.debug("No video_url")
                 return False, ""
             else:
                 return True, video_url
@@ -419,9 +419,9 @@ class SonarrYTDL(object):
                         if "cookies_file" in ser:
                             cookies = ser["cookies_file"]
                         ydleps = self.ytdl_eps_search_opts(
-                            upperescape(eps["title"]), ser["playlistreverse"], cookies
+                            ser["playlistreverse"], cookies
                         )
-                        found, dlurl = self.ytsearch(ydleps, url)
+                        found, dlurl = self.ytsearch(ydleps, url, upperescape(eps["title"]))
                         if found:
                             logger.info(
                                 "    {}: Found - {}:".format(e + 1, eps["title"])
