@@ -12,13 +12,13 @@ jobs:
     steps:
       # https://github.com/actions/checkout
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # https://github.com/actions/setup-python
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -54,7 +54,7 @@ jobs:
       # https://github.com/actions/github-script
       - name: Trigger Docker build
         if: steps.ytdlp-version.outputs.latest != steps.current-version.outputs.current
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             github.rest.actions.createWorkflowDispatch({
