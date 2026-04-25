@@ -381,7 +381,11 @@ class SonarrYTDL(object):
                 result = ydl.extract_info(playlist, download=False)
         except Exception as e:
             logger.error(e)
+            return False, ""
         else:
+            if result is None:
+                logger.error("No result returned from yt-dlp")
+                return False, ""
             video_url = None
             if "entries" in result and len(result["entries"]) > 0:
                 try:
