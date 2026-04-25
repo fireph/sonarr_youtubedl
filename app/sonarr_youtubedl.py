@@ -286,7 +286,7 @@ class SonarrYTDL(object):
         for ser in series[:]:
             episodes = self.get_episodes_by_series_id(ser["id"])
             for eps in episodes[:]:
-                eps_date = now
+                eps_date = None
                 if "airDateUtc" in eps:
                     eps_date = datetime.strptime(eps["airDateUtc"], date_format)
                     if "offset" in ser:
@@ -295,7 +295,7 @@ class SonarrYTDL(object):
                     episodes.remove(eps)
                 elif eps["hasFile"]:
                     episodes.remove(eps)
-                elif eps_date > now:
+                elif eps_date is None or eps_date > now:
                     episodes.remove(eps)
                 else:
                     if "sonarr_regex_match" in ser:
@@ -359,7 +359,11 @@ class SonarrYTDL(object):
             "ignoreerrors": True,
             "playlistreverse": playlistreverse,
             "matchtitle": regextitle,
-            "match_filter": lambda info, *, incomplete=False: None if info.get("title") else "unavailable",
+            "match_filter": lambda info, *, incomplete=False: (
+                None if not incomplete
+                else None if (info.get("title") and re.search(regextitle, info["title"], re.IGNORECASE))
+                else "unavailable or no match"
+            ),
             "quiet": True,
         }
         if self.debug is True:
@@ -385,10 +389,10 @@ class SonarrYTDL(object):
             return False, ""
         else:
             if result is None:
-                logger.error("No result returned from yt-dlp")
+                logger.debug("No result returned from yt-dlp")
                 return False, ""
             video_url = None
-            if "entries" in result and len(result["entries"]) > 0:
+            if "entries" in result and result["entries"] and len(result["entries"]) > 0:
                 try:
                     video_url = result["entries"][0].get("webpage_url")
                 except Exception as e:
