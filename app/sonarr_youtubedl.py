@@ -359,6 +359,7 @@ class SonarrYTDL(object):
             "ignoreerrors": True,
             "playlistreverse": playlistreverse,
             "matchtitle": regextitle,
+            "match_filter": lambda info, *, incomplete=False: None if info.get("title") else "unavailable",
             "quiet": True,
         }
         if self.debug is True:
