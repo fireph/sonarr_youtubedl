@@ -2,6 +2,8 @@ sonarrytdl:
     # Standard five-field cron expression. This example runs every 15 minutes.
     # Restart the container after changing this value.
     cron: "*/15 * * * *"
+    # Run one scan immediately when the container starts.
+    run_on_start: true
     debug: False  # Set to True for a more verbose output
 sonarr:
     host: 192.168.1.123

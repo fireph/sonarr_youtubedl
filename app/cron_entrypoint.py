@@ -6,10 +6,11 @@ import shlex
 import subprocess
 import sys
 
-from sytdl.config import ConfigError, get_config_path, load_config
+from sytdl.config import ConfigError, as_bool, get_config_path, load_config
 
 
 CRON_FIELD = re.compile(r"^[A-Za-z0-9*/?,\-]+$")
+LOCK_FILE = "/var/lock/sonarr_youtube.lock"
 
 
 def validate_cron_expression(expression):
@@ -62,26 +63,37 @@ def get_cron_expression(cfg):
     ).format(expression)
 
 
+def get_run_on_start(cfg):
+    app_cfg = cfg.get("sonarrytdl", {})
+    if not isinstance(app_cfg, dict):
+        raise ConfigError("sonarrytdl must be a YAML mapping")
+    return as_bool(app_cfg.get("run_on_start"), True)
+
+
+def build_run_command(config_path):
+    return [
+        "/usr/bin/flock",
+        "-n",
+        LOCK_FILE,
+        "/bin/uv",
+        "run",
+        "--project",
+        "/opt/sonarr_youtubedl",
+        "--locked",
+        "--no-dev",
+        "--no-sync",
+        "python",
+        "-u",
+        "/app/sonarr_youtubedl.py",
+        "--config",
+        str(config_path),
+    ]
+
+
 def build_crontab(expression, config_path):
-    command = " ".join(
-        [
-            "/usr/bin/flock",
-            "-n",
-            "/var/lock/sonarr_youtube.lock",
-            "/bin/uv",
-            "run",
-            "--project",
-            "/opt/sonarr_youtubedl",
-            "--locked",
-            "--no-dev",
-            "--no-sync",
-            "python",
-            "-u",
-            "/app/sonarr_youtubedl.py",
-            "--config",
-            shlex.quote(str(config_path)),
-            ">> /proc/1/fd/1 2>> /proc/1/fd/2",
-        ]
+    command = "{} {}".format(
+        " ".join(shlex.quote(value) for value in build_run_command(config_path)),
+        ">> /proc/1/fd/1 2>> /proc/1/fd/2",
     )
     return "\n".join(
         [
@@ -98,6 +110,7 @@ def main():
     try:
         cfg = load_config(config_path)
         expression, warning = get_cron_expression(cfg)
+        run_on_start = get_run_on_start(cfg)
         crontab = build_crontab(expression, config_path)
         subprocess.run(
             ["crontab", "-"],
@@ -115,6 +128,31 @@ def main():
         "Installed cron schedule '{}' from {}".format(expression, config_path),
         flush=True,
     )
+    if run_on_start:
+        print("Running initial scan", flush=True)
+        try:
+            initial_run = subprocess.run(
+                build_run_command(config_path),
+                check=False,
+            )
+        except OSError as exc:
+            print(
+                "WARNING: Initial scan could not start: {}; cron will continue".format(
+                    exc
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+        else:
+            if initial_run.returncode:
+                print(
+                    "WARNING: Initial scan exited with status {}; cron will "
+                    "continue".format(initial_run.returncode),
+                    file=sys.stderr,
+                    flush=True,
+                )
+    else:
+        print("Initial scan disabled by sonarrytdl.run_on_start", flush=True)
     os.execvp("cron", ["cron", "-f"])
 
 

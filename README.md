@@ -129,10 +129,15 @@ The scheduler uses a standard five-field cron expression:
 ```yaml
 sonarrytdl:
   cron: "*/15 * * * *"  # every 15 minutes
+  run_on_start: true     # run once immediately when the container starts
   debug: false
 ```
 
 Some other useful schedules are `0 * * * *` (hourly), `0 3 * * *` (daily at 03:00), and `0 3 * * MON` (Mondays at 03:00). Cron uses the container's local timezone, which is UTC unless you configure the container otherwise. Restart the container after changing the cron expression so it can reinstall the job.
+
+`run_on_start` defaults to `true` when omitted. Set it to `false` to wait for
+the first scheduled cron time. The initial scan uses the same non-overlapping
+lock as scheduled scans, and a failed initial scan does not stop cron.
 
 Older configs containing `scan_interval` are translated when possible, including
 hourly and whole-hour intervals, and log a deprecation warning with the exact

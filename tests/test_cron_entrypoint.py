@@ -6,6 +6,7 @@ import pytest
 import cron_entrypoint
 from cron_entrypoint import (
     build_crontab,
+    build_run_command,
     get_cron_expression,
     validate_cron_expression,
 )
@@ -53,7 +54,7 @@ def test_scheduler_installs_the_configured_job_before_starting_cron(
 ):
     config_path = tmp_path / "config.yml"
     config_path.write_text(
-        'sonarrytdl:\n  cron: "0 3 * * MON"\n',
+        'sonarrytdl:\n  cron: "0 3 * * MON"\n  run_on_start: false\n',
         encoding="utf-8",
     )
     installed = {}
@@ -86,3 +87,41 @@ def test_scheduler_installs_the_configured_job_before_starting_cron(
         "0 3 * * MON "
     )
     assert "--config {}".format(config_path) in installed["input"]
+
+
+def test_scheduler_runs_once_by_default_and_survives_initial_failure(
+    tmp_path, monkeypatch, capsys
+):
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        'sonarrytdl:\n  cron: "0 * * * *"\n',
+        encoding="utf-8",
+    )
+    events = []
+
+    def record_command(command, **kwargs):
+        if command == ["crontab", "-"]:
+            events.append("install")
+            return subprocess.CompletedProcess(command, 0)
+        events.append(command)
+        assert kwargs["check"] is False
+        return subprocess.CompletedProcess(command, 1)
+
+    class CronStarted(Exception):
+        pass
+
+    def start_cron(executable, arguments):
+        events.append("cron")
+        assert executable == "cron"
+        assert arguments == ["cron", "-f"]
+        raise CronStarted
+
+    monkeypatch.setenv("CONFIGPATH", str(config_path))
+    monkeypatch.setattr(subprocess, "run", record_command)
+    monkeypatch.setattr(os, "execvp", start_cron)
+
+    with pytest.raises(CronStarted):
+        cron_entrypoint.main()
+
+    assert events == ["install", build_run_command(config_path), "cron"]
+    assert "Initial scan exited with status 1; cron will continue" in capsys.readouterr().err
