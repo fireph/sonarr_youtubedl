@@ -3,7 +3,7 @@ name = "sonarr-youtubedl"
 version = "0.1.0"
 description = "Download web series for Sonarr v4 using yt-dlp"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.14.*"
 dependencies = [
     "pyyaml>=6.0.3,<7",
     "requests>=2.32.5,<3",
