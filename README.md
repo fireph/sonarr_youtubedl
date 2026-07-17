@@ -25,6 +25,7 @@
 ## Features
 
 - **Web Series Download** - Access online sources unavailable to Sonarr
+- **Multiple Sources** - Search several channels or playlists for one Sonarr series
 - **Format Control** - Specify video format globally or per series
 - **Automatic Downloads** - New episodes downloaded as they become available
 - **Low Idle Memory** - A cron daemon starts the app only on the configured schedule
@@ -143,6 +144,31 @@ Older configs containing `scan_interval` are translated when possible, including
 hourly and whole-hour intervals, and log a deprecation warning with the exact
 replacement expression. Replace that setting with `cron`; the app no longer keeps
 Python and yt-dlp loaded between scans.
+
+### Series source URLs
+
+The `url` setting accepts either one source URL or a list. Existing single-URL
+configurations continue to work:
+
+```yaml
+series:
+  - title: Example Series
+    url: https://www.youtube.com/playlist?list=CURRENT_SEASON
+```
+
+The list form may contain one or more URLs. To search multiple channels or
+playlists for the same Sonarr series, list them in preferred search order:
+
+```yaml
+series:
+  - title: Example Series
+    url:
+      - https://www.youtube.com/playlist?list=CURRENT_SEASON
+      - https://www.youtube.com/playlist?list=PREVIOUS_SEASON
+```
+
+Each source is inspected once per scan. If an episode appears in more than one
+source, the first matching URL in the configured order is used.
 
 ### Sonarr compatibility
 

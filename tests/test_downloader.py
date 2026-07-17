@@ -13,9 +13,12 @@ class FakeYoutubeDL:
     def __exit__(self, *_args):
         return False
 
-    def extract_info(self, _playlist, download=False):
+    def extract_info(self, playlist, download=False):
         assert download is False
         self.factory.extract_calls += 1
+        self.factory.extracted_urls.append(playlist)
+        if playlist in self.factory.extract_results:
+            return self.factory.extract_results[playlist]
         return self.factory.extract_result
 
     def download(self, urls):
@@ -24,11 +27,15 @@ class FakeYoutubeDL:
 
 
 class FakeYoutubeDLFactory:
-    def __init__(self, extract_result=None, download_status=0):
+    def __init__(
+        self, extract_result=None, download_status=0, extract_results=None
+    ):
         self.extract_result = extract_result
+        self.extract_results = extract_results or {}
         self.download_status = download_status
         self.seen_options = []
         self.downloaded_urls = []
+        self.extracted_urls = []
         self.extract_calls = 0
 
     def __call__(self, options):
@@ -156,6 +163,53 @@ def test_series_download_counts_only_successfully_matched_episodes():
     assert downloaded == 1
     assert factory.downloaded_urls == ["https://example.test/watch/42"]
     assert factory.extract_calls == 1
+
+
+def test_series_download_searches_each_configured_url_once():
+    first_source = "https://example.test/playlist/season-1"
+    second_source = "https://example.test/playlist/season-2"
+    factory = FakeYoutubeDLFactory(
+        extract_results={
+            first_source: {
+                "entries": [
+                    {
+                        "title": "Episode 42",
+                        "webpage_url": "https://example.test/watch/42",
+                    }
+                ]
+            },
+            second_source: {
+                "entries": [
+                    {
+                        "title": "Episode 42",
+                        "webpage_url": "https://example.test/watch/42-duplicate",
+                    },
+                    {
+                        "title": "Episode 43",
+                        "webpage_url": "https://example.test/watch/43",
+                    }
+                ]
+            },
+        }
+    )
+    downloader = make_downloader(factory)
+    second_episode = {
+        **make_episode(),
+        "title": "Episode 43",
+        "episodeNumber": 3,
+    }
+
+    downloaded = downloader.download_series(
+        make_series(url=[first_source, second_source]),
+        [make_episode(), second_episode],
+    )
+
+    assert downloaded == 2
+    assert factory.extracted_urls == [first_source, second_source]
+    assert factory.downloaded_urls == [
+        "https://example.test/watch/42",
+        "https://example.test/watch/43",
+    ]
 
 
 def test_download_honors_relative_cookies_subtitles_and_specials_path(tmp_path):

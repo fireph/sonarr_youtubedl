@@ -19,6 +19,11 @@ series:
   # Standard channel to check
   - title: Smarter Every Day
     url: https://www.youtube.com/channel/UC6107grRI4m0o2-emgoDnAA
+  # One or more channels/playlists for a series can be listed under url:
+  # - title: Example Series
+  #   url:
+  #     - https://www.youtube.com/playlist?list=FIRST_PLAYLIST_ID
+  #     - https://www.youtube.com/playlist?list=SECOND_PLAYLIST_ID
   # Example using cookies file and custom format
   # For information on cookies refer to https://github.com/ytdl-org/youtube-dl#how-do-i-pass-cookies-to-youtube-dl
   # For information on format refer to https://github.com/ytdl-org/youtube-dl#format-selection

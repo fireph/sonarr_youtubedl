@@ -63,14 +63,39 @@ class SonarrYTDLService(object):
         for index, item in enumerate(series_cfg, start=1):
             if not isinstance(item, dict):
                 raise ConfigError("series item {} must be a YAML mapping".format(index))
-            if not item.get("title") or not item.get("url"):
+            if not item.get("title"):
                 raise ConfigError(
-                    "series item {} requires both title and url".format(index)
+                    "series item {} requires a title".format(index)
                 )
             title = str(item["title"])
             if title in titles:
                 raise ConfigError("Duplicate series title in config: {}".format(title))
             titles.add(title)
+
+            if "url" not in item:
+                raise ConfigError(
+                    "series item {} ({}) requires url".format(index, title)
+                )
+
+            configured_urls = item["url"]
+            if isinstance(configured_urls, list):
+                raw_urls = configured_urls
+            else:
+                raw_urls = [configured_urls]
+            if not raw_urls:
+                raise ConfigError(
+                    "url for {} must contain at least one URL".format(title)
+                )
+
+            urls = []
+            for url_index, url in enumerate(raw_urls, start=1):
+                if not isinstance(url, str) or not url.strip():
+                    raise ConfigError(
+                        "URL {} for {} must be a non-empty string".format(
+                            url_index, title
+                        )
+                    )
+                urls.append(url.strip())
 
             regex_cfg = item.get("regex", {})
             if not isinstance(regex_cfg, dict):
@@ -89,7 +114,10 @@ class SonarrYTDLService(object):
                     raise ConfigError(
                         "Invalid regex.{} match for {}: {}".format(source, title, exc)
                     ) from exc
-            validated.append(item)
+            configured = dict(item)
+            configured["urls"] = urls
+            configured["url"] = urls[0]
+            validated.append(configured)
         return validated
 
     def matched_series(self):
@@ -111,7 +139,8 @@ class SonarrYTDLService(object):
             series = dict(source_series)
             series.update(
                 {
-                    "url": str(configured["url"]),
+                    "url": configured["urls"][0],
+                    "urls": list(configured["urls"]),
                     "playlistreverse": as_bool(
                         configured.get("playlistreverse"), True
                     ),
