@@ -39,13 +39,27 @@ def get_cron_expression(cfg):
         minutes = int(legacy_interval)
     except (TypeError, ValueError) as exc:
         raise ConfigError("sonarrytdl.scan_interval must be an integer") from exc
-    if minutes < 1 or minutes > 59:
+    if minutes < 1:
+        raise ConfigError("sonarrytdl.scan_interval must be at least one minute")
+
+    if minutes < 60:
+        expression = "*/{} * * * *".format(minutes)
+    elif minutes == 60:
+        expression = "0 * * * *"
+    elif minutes < 24 * 60 and minutes % 60 == 0:
+        expression = "0 */{} * * *".format(minutes // 60)
+    elif minutes == 24 * 60:
+        expression = "0 0 * * *"
+    else:
         raise ConfigError(
-            "Replace sonarrytdl.scan_interval with a five-field sonarrytdl.cron value"
+            "sonarrytdl.scan_interval={} cannot be represented by one standard cron "
+            "expression; replace it with a five-field sonarrytdl.cron value".format(
+                minutes
+            )
         )
-    return "*/{} * * * *".format(minutes), (
-        "sonarrytdl.scan_interval is deprecated; replace it with cron: \"*/{} * * * *\""
-    ).format(minutes)
+    return expression, (
+        'sonarrytdl.scan_interval is deprecated; replace it with cron: "{}"'
+    ).format(expression)
 
 
 def build_crontab(expression, config_path):

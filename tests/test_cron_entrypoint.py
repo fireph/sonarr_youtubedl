@@ -39,6 +39,15 @@ def test_legacy_scan_interval_is_migrated_to_cron_with_a_warning():
     assert 'cron: "*/20 * * * *"' in warning
 
 
+def test_legacy_hourly_scan_interval_does_not_cause_a_restart_loop():
+    expression, warning = get_cron_expression(
+        {"sonarrytdl": {"scan_interval": 60}}
+    )
+
+    assert expression == "0 * * * *"
+    assert 'cron: "0 * * * *"' in warning
+
+
 def test_scheduler_installs_the_configured_job_before_starting_cron(
     tmp_path, monkeypatch
 ):

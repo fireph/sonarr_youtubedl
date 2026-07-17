@@ -134,7 +134,10 @@ sonarrytdl:
 
 Some other useful schedules are `0 * * * *` (hourly), `0 3 * * *` (daily at 03:00), and `0 3 * * MON` (Mondays at 03:00). Cron uses the container's local timezone, which is UTC unless you configure the container otherwise. Restart the container after changing the cron expression so it can reinstall the job.
 
-Older configs containing `scan_interval` are translated when possible and log a deprecation warning. Replace that setting with `cron`; the app no longer keeps Python and yt-dlp loaded between scans.
+Older configs containing `scan_interval` are translated when possible, including
+hourly and whole-hour intervals, and log a deprecation warning with the exact
+replacement expression. Replace that setting with `cron`; the app no longer keeps
+Python and yt-dlp loaded between scans.
 
 ### Sonarr compatibility
 
