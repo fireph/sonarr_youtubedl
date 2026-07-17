@@ -1,11 +1,18 @@
+FROM ghcr.io/astral-sh/uv:0.11 AS uv
 FROM python:3-slim
 
-COPY requirements.txt requirements.txt
+COPY --from=uv /uv /uvx /bin/
 
 ENV DENO_INSTALL="/usr/local"
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+WORKDIR /opt/sonarr_youtubedl
+
+COPY pyproject.toml uv.lock README.md ./
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl unzip xz-utils && \
+    apt-get install -y --no-install-recommends cron curl tini unzip util-linux xz-utils && \
     curl -fsSL https://deno.land/install.sh | sh && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         FFMPEG_ARCH="linuxarm64"; \
@@ -19,8 +26,9 @@ RUN apt-get update && \
     apt-get purge -y curl unzip xz-utils && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir -r requirements.txt
+    rm -rf /var/lib/apt/lists/*
+
+RUN uv sync --locked --no-dev --no-install-project
 
 # create some files / folders
 RUN mkdir -p /config /app /sonarr_root /logs && \
@@ -33,13 +41,14 @@ VOLUME /config /sonarr_root /logs
 COPY app/ /app
 
 # update file permissions
-RUN \
-    chmod a+x \
-    /app/sonarr_youtubedl.py \ 
-    /app/utils.py \
-    /app/config.yml.template
+RUN chmod a+x /app/sonarr_youtubedl.py /app/cron_entrypoint.py
 
 # ENV setup
 ENV CONFIGPATH=/config/config.yml
+ENV LOGPATH=/logs/sonarr_youtubedl.log
 
-CMD [ "python", "-u", "/app/sonarr_youtubedl.py" ]
+ENTRYPOINT [ "/usr/bin/tini", "--" ]
+
+# Use the uv-created environment for the short bootstrap, which then execs cron.
+# Scheduled application runs themselves use `uv run` (see cron_entrypoint.py).
+CMD [ "/opt/sonarr_youtubedl/.venv/bin/python", "-u", "/app/cron_entrypoint.py" ]

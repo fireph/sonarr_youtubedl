@@ -2,6 +2,7 @@ name: Docker Build and Push
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - main
@@ -9,7 +10,36 @@ on:
       - "*"
 
 jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.14"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.x"
+
+      - name: Install Python
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync locked dependencies
+        run: uv sync --locked --python ${{ matrix.python-version }}
+
+      - name: Run tests
+        run: uv run --locked --no-sync pytest -q
+
   docker:
+    needs: test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,7 +67,7 @@ jobs:
           else
             DOCKER_TAG="${GITHUB_REF:11}"
           fi
-          echo "tag=${DOCKER_TAG}" >> $GITHUB_OUTPUT
+          echo "tag=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -49,17 +79,16 @@ jobs:
 
       # https://github.com/docker/build-push-action
       - name: Build and Push Docker Image
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         id: docker_build
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
+          pull: true
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           # ,linux/386,linux/arm/v7,linux/arm/v6
           tags: dungfu/sonarr_youtubedl:${{ steps.tag.outputs.tag }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

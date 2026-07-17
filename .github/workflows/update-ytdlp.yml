@@ -6,6 +6,10 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: write
+
 jobs:
   update-ytdlp:
     runs-on: ubuntu-latest
@@ -16,44 +20,48 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # https://github.com/actions/setup-python
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
-          python-version: '3.x'
+          version: "0.11.x"
 
-      - name: Get latest yt-dlp version
-        id: ytdlp-version
+      - name: Update pinned yt-dlp version
+        id: update
         run: |
-          LATEST_VERSION=$(pip index versions yt-dlp | grep "Available versions:" | head -1 | cut -d' ' -f3 | tr -d ',')
-          echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          echo "Latest yt-dlp version: $LATEST_VERSION"
+          LATEST_VERSION="$(
+            python3 - <<'PY'
+          import json
+          import urllib.request
 
-      - name: Get current yt-dlp version
-        id: current-version
-        run: |
-          CURRENT_VERSION=$(grep "yt-dlp\[default,curl-cffi\]==" requirements.txt | cut -d'=' -f3)
-          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "Current yt-dlp version: $CURRENT_VERSION"
+          with urllib.request.urlopen(
+              "https://pypi.org/pypi/yt-dlp/json", timeout=30
+          ) as response:
+              print(json.load(response)["info"]["version"])
+          PY
+          )"
 
-      - name: Update requirements.txt
-        if: steps.ytdlp-version.outputs.latest != steps.current-version.outputs.current
-        run: |
-          sed -i "s/yt-dlp\[default,curl-cffi\]==${{ steps.current-version.outputs.current }}/yt-dlp[default,curl-cffi]==${{ steps.ytdlp-version.outputs.latest }}/" requirements.txt
-          echo "Updated yt-dlp from ${{ steps.current-version.outputs.current }} to ${{ steps.ytdlp-version.outputs.latest }}"
+          uv add --no-sync "yt-dlp[curl-cffi,default]==${LATEST_VERSION}"
+
+          echo "version=${LATEST_VERSION}" >> "$GITHUB_OUTPUT"
+          if git diff --quiet -- pyproject.toml uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Commit and push changes
-        if: steps.ytdlp-version.outputs.latest != steps.current-version.outputs.current
+        if: steps.update.outputs.changed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add requirements.txt
-          git commit -m "Update yt-dlp to ${{ steps.ytdlp-version.outputs.latest }}"
+          git add pyproject.toml uv.lock
+          git commit -m "Update yt-dlp to ${{ steps.update.outputs.version }}"
           git push
 
-      # https://github.com/actions/github-script
+      # GITHUB_TOKEN pushes do not start another workflow, so dispatch the
+      # Docker workflow explicitly after the version commit is pushed.
       - name: Trigger Docker build
-        if: steps.ytdlp-version.outputs.latest != steps.current-version.outputs.current
+        if: steps.update.outputs.changed == 'true'
         uses: actions/github-script@v9
         with:
           script: |

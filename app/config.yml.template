@@ -1,13 +1,14 @@
 sonarrytdl:
-    scan_interval: 1  # minutes between scans
+    # Standard five-field cron expression. This example runs every 15 minutes.
+    # Restart the container after changing this value.
+    cron: "*/15 * * * *"
     debug: False  # Set to True for a more verbose output
 sonarr:
     host: 192.168.1.123
     port: 8989  # sonarr default port
     apikey: 12341234
     ssl: false
-    # basedir: '/sonarr'  # if you have sonarr running with a basedir set (e.g. behind a proxy)
-    # version: v4 # if running v4 beta, allows the v3 api endpoints
+    # basedir: '/sonarr'  # if Sonarr v4 uses a URL base (e.g. behind a proxy)
 
 ytdl:
   # For information on format refer to https://github.com/ytdl-org/youtube-dl#format-selection
