@@ -13,7 +13,7 @@ from .logging_utils import (
     ytdl_hooks,
     ytdl_hooks_debug,
 )
-from .media import sanitize_filename_part, title_pattern
+from .media import normalize_title, sanitize_filename_part, title_pattern
 
 
 logger = logging.getLogger("sonarr_youtubedl")
@@ -82,7 +82,8 @@ class EpisodeDownloader(object):
         candidate = str(title)
         if site_match is not None:
             candidate = re.sub(site_match, site_replace, candidate)
-        return re.search(pattern, candidate, re.IGNORECASE) is not None
+        candidate = normalize_title(candidate)
+        return re.search(pattern, candidate) is not None
 
     def _extract_series(self, series, search_options=None):
         """Fetch a configured channel or playlist once."""

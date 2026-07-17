@@ -1,8 +1,19 @@
 import datetime
 import re
+import unicodedata
 from datetime import timezone
 
 from .config import ConfigError
+
+
+_APOSTROPHE_TRANSLATION = str.maketrans(
+    {
+        "’": "'",
+        "‘": "'",
+        "ʼ": "'",
+        "＇": "'",
+    }
+)
 
 
 def parse_air_date(value):
@@ -41,17 +52,20 @@ def sanitize_filename_part(value):
     return value.strip(". ")
 
 
+def normalize_title(value):
+    """Return a canonical title for conservative, punctuation-insensitive matching."""
+    value = unicodedata.normalize("NFKC", str(value))
+    value = value.casefold().translate(_APOSTROPHE_TRANSLATION)
+    value = value.replace("&", " and ")
+    value = re.sub(r"(?<=\w)'(?=\w)", "", value)
+    value = re.sub(r"[\W_]+", " ", value, flags=re.UNICODE)
+    return " ".join(value.split())
+
+
 def title_pattern(value):
-    """Build a forgiving, case-insensitive regex from an episode title."""
-    value = str(value).upper()
-    value = value.replace("’", "'").replace("“", '"').replace("”", '"')
-    value = re.escape(value)
-    value = value.replace("\\ AND\\ ", "\\ (AND|&)\\ ")
-    value = value.replace("'", "(['’]?)")
-    value = value.replace(",", "([,]?)")
-    value = value.replace("!", "([!]?)")
-    value = value.replace("\\.", "([\\.]?)")
-    value = value.replace("\\?", "([\\?]?)")
-    value = value.replace(":", "([:]?)")
-    value = re.sub("S\\\\", "([']?)" + "S\\\\", value)
-    return r"(?<!\w){}(?!\w)".format(value)
+    """Build a whole-title regex from a normalized episode title."""
+    normalized = normalize_title(value)
+    if not normalized:
+        return r"(?!)"
+    body = r"\s+".join(re.escape(token) for token in normalized.split())
+    return r"(?<!\w){}(?!\w)".format(body)
