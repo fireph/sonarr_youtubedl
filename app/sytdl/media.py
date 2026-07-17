@@ -53,5 +53,5 @@ def title_pattern(value):
     value = value.replace("\\.", "([\\.]?)")
     value = value.replace("\\?", "([\\?]?)")
     value = value.replace(":", "([:]?)")
-    return re.sub("S\\\\", "([']?)" + "S\\\\", value)
-
+    value = re.sub("S\\\\", "([']?)" + "S\\\\", value)
+    return r"(?<!\w){}(?!\w)".format(value)

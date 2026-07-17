@@ -84,34 +84,37 @@ class EpisodeDownloader(object):
             candidate = re.sub(site_match, site_replace, candidate)
         return re.search(pattern, candidate, re.IGNORECASE) is not None
 
-    def find_episode(self, series, episode, search_options=None):
-        """Return the matching video URL, or None when the episode is absent."""
+    def _extract_series(self, series, search_options=None):
+        """Fetch a configured channel or playlist once."""
         options = search_options or self._search_options(series)
         try:
             with self.ytdl_factory(options) as ydl:
-                result = ydl.extract_info(series["url"], download=False)
+                return ydl.extract_info(series["url"], download=False)
         except Exception as exc:
             logger.error("yt-dlp could not inspect %s: %s", series["url"], exc)
             return None
 
+    def _find_episode_in_result(self, series, episode, result):
         if not isinstance(result, dict):
             return None
         pattern = title_pattern(episode["title"])
         site_match = series.get("site_regex_match")
         site_replace = series.get("site_regex_replace", "")
         entries = result.get("entries")
-        if entries:
+        if entries is not None:
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
                 if self._title_matches(
                     entry.get("title"), pattern, site_match, site_replace
                 ):
-                    return (
+                    download_url = (
                         entry.get("webpage_url")
                         or entry.get("original_url")
                         or entry.get("url")
                     )
+                    if download_url:
+                        return download_url
             return None
 
         if self._title_matches(
@@ -124,6 +127,11 @@ class EpisodeDownloader(object):
                 or series["url"]
             )
         return None
+
+    def find_episode(self, series, episode, search_options=None):
+        """Return the matching video URL, or None when the episode is absent."""
+        result = self._extract_series(series, search_options)
+        return self._find_episode_in_result(series, episode, result)
 
     def _download_options(self, series, episode):
         series_path = str(series["path"])
@@ -210,8 +218,11 @@ class EpisodeDownloader(object):
 
         downloaded = 0
         search_options = self._search_options(series)
+        search_result = self._extract_series(series, search_options)
         for index, episode in enumerate(wanted, start=1):
-            download_url = self.find_episode(series, episode, search_options)
+            download_url = self._find_episode_in_result(
+                series, episode, search_result
+            )
             if not download_url:
                 logger.info("    %d: Missing - %s", index, episode["title"])
                 continue

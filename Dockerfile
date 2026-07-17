@@ -3,6 +3,8 @@
 FROM ghcr.io/astral-sh/uv:0.11 AS uv
 FROM python:3.14-slim
 
+ARG TARGETARCH
+
 COPY --from=uv /uv /bin/uv
 
 ENV DENO_INSTALL="/usr/local"
@@ -10,14 +12,15 @@ ENV DENO_INSTALL="/usr/local"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends cron curl tini unzip util-linux xz-utils && \
     curl -fsSL https://deno.land/install.sh | sh && \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        FFMPEG_ARCH="linuxarm64"; \
-    else \
-        FFMPEG_ARCH="linux64"; \
-    fi && \
+    case "$TARGETARCH" in \
+        amd64) FFMPEG_ARCH="linux64" ;; \
+        arm64) FFMPEG_ARCH="linuxarm64" ;; \
+        *) echo "Unsupported Docker architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac && \
     curl -L https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-${FFMPEG_ARCH}-gpl.tar.xz | tar xJ -C /tmp && \
     cp /tmp/ffmpeg-master-latest-${FFMPEG_ARCH}-gpl/bin/ffmpeg /usr/local/bin/ && \
     cp /tmp/ffmpeg-master-latest-${FFMPEG_ARCH}-gpl/bin/ffprobe /usr/local/bin/ && \
+    ffmpeg -version >/dev/null 2>&1 && \
     rm -rf /tmp/ffmpeg-master-latest-${FFMPEG_ARCH}-gpl && \
     apt-get purge -y curl unzip xz-utils && \
     apt-get autoremove -y && \

@@ -15,6 +15,7 @@ class FakeYoutubeDL:
 
     def extract_info(self, _playlist, download=False):
         assert download is False
+        self.factory.extract_calls += 1
         return self.factory.extract_result
 
     def download(self, urls):
@@ -28,6 +29,7 @@ class FakeYoutubeDLFactory:
         self.download_status = download_status
         self.seen_options = []
         self.downloaded_urls = []
+        self.extract_calls = 0
 
     def __call__(self, options):
         return FakeYoutubeDL(self, options)
@@ -91,6 +93,28 @@ def test_matching_applies_site_cleanup_and_handles_unavailable_entries():
     )
 
 
+def test_matching_does_not_confuse_shorter_numbered_episode_titles():
+    factory = FakeYoutubeDLFactory(
+        {
+            "entries": [
+                {
+                    "title": "Episode 420",
+                    "webpage_url": "https://example.test/watch/420",
+                },
+                {
+                    "title": "Episode 42",
+                    "webpage_url": "https://example.test/watch/42",
+                },
+            ]
+        }
+    )
+    downloader = make_downloader(factory)
+
+    assert downloader.find_episode(make_series(), make_episode()) == (
+        "https://example.test/watch/42"
+    )
+
+
 def test_failed_ytdlp_status_is_not_treated_as_a_download():
     factory = FakeYoutubeDLFactory(download_status=1)
     downloader = make_downloader(factory)
@@ -131,6 +155,7 @@ def test_series_download_counts_only_successfully_matched_episodes():
 
     assert downloaded == 1
     assert factory.downloaded_urls == ["https://example.test/watch/42"]
+    assert factory.extract_calls == 1
 
 
 def test_download_honors_relative_cookies_subtitles_and_specials_path(tmp_path):
