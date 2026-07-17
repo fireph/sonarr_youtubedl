@@ -1,15 +1,11 @@
+# syntax=docker/dockerfile:1
+
 FROM ghcr.io/astral-sh/uv:0.11 AS uv
 FROM python:3-slim
 
-COPY --from=uv /uv /uvx /bin/
+COPY --from=uv /uv /bin/uv
 
 ENV DENO_INSTALL="/usr/local"
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
-WORKDIR /opt/sonarr_youtubedl
-
-COPY pyproject.toml uv.lock README.md ./
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends cron curl tini unzip util-linux xz-utils && \
@@ -28,7 +24,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN uv sync --locked --no-dev --no-install-project
+WORKDIR /opt/sonarr_youtubedl
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock README.md ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
 
 # create some files / folders
 RUN mkdir -p /config /app /sonarr_root /logs && \
